@@ -1,4 +1,3 @@
-using ClearBank.DeveloperTest.Data;
 using ClearBank.DeveloperTest.Services;
 using ClearBank.DeveloperTest.Types;
 using Moq;
@@ -11,27 +10,24 @@ namespace ClearBank.DeveloperTest.Tests
     {
         private IPaymentService paymentService;
         private Mock<IAccountService> mockAccountService;
-        private Mock<IDataStore> mockDataStore;
 
         [SetUp]
         public void SetUp()
         {
             mockAccountService = new Mock<IAccountService>();
-            mockDataStore = new Mock<IDataStore>();
             paymentService = new PaymentService(mockAccountService.Object);
         }
 
         [Test]
         public void AccountStatus_False_Returns_MakePayment_False()
         {
-            mockAccountService.Setup(f => f.GetAccountDataStore(It.IsAny<string>())).Returns(new AccountDataStore());
-            mockAccountService.Setup(f => f.GetAccountStatus(It.IsAny<Account>(), PaymentScheme.Bacs, 1 )).Returns(new MakePaymentResult { Success = false });
-            mockDataStore.Setup(f => f.GetAccount(It.IsAny<string>())).Returns(new Account());
+            mockAccountService.Setup(f => f.GetAccount(It.IsAny<string>())).Returns(new Account());
+            mockAccountService.Setup(f => f.CheckAccountStatus(It.IsAny<Account>(), PaymentScheme.Bacs, 2)).Returns(false);
 
             var request = new MakePaymentRequest
             {
                 PaymentScheme = PaymentScheme.Bacs,
-                Amount=1
+                Amount = 1
             };
             var makePaymentReult = paymentService.MakePayment(request);
 
@@ -42,22 +38,22 @@ namespace ClearBank.DeveloperTest.Tests
         public void AccountStatus_True_Returns_MakePayment_True()
         {
             var debtorAccountNumber = "123";
-            mockAccountService.Setup(f => f.GetAccountDataStore(It.IsAny<string>())).Returns(mockDataStore.Object);
             var account = new Account() { Balance = 3 };
-            mockDataStore.Setup(f => f.GetAccount(debtorAccountNumber)).Returns(account);
-            mockAccountService.Setup(f => f.GetAccountStatus(account, PaymentScheme.Bacs, 2)).Returns(new MakePaymentResult { Success = true });
+
+            mockAccountService.Setup(f => f.GetAccount(It.IsAny<string>())).Returns(account);
+            mockAccountService.Setup(f => f.CheckAccountStatus(It.IsAny<Account>(), PaymentScheme.Bacs, 2)).Returns(true);
 
 
             var request = new MakePaymentRequest
             {
                 PaymentScheme = PaymentScheme.Bacs,
                 Amount = 2,
-                DebtorAccountNumber=debtorAccountNumber
+                DebtorAccountNumber = debtorAccountNumber
             };
             var makePaymentReult = paymentService.MakePayment(request);
 
             Assert.True(makePaymentReult.Success);
-            Assert.AreEqual(1,account.Balance);
+            Assert.AreEqual(1, account.Balance);
         }
 
     }

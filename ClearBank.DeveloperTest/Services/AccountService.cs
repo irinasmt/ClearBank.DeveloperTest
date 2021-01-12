@@ -1,54 +1,46 @@
 ﻿using ClearBank.DeveloperTest.Data;
+using ClearBank.DeveloperTest.Services.Interfaces;
 using ClearBank.DeveloperTest.Types;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Options;
 using System;
 
 namespace ClearBank.DeveloperTest.Services
 {
     public class AccountService : IAccountService
     {
-        public IDataStore GetAccountDataStore(string dataStoreType)
+        private readonly IDataStoreFactory dataStoreFactory;
+        private readonly IPaymentValidatorFactory paymentValidatorFactory;
+
+        public AccountService(IDataStoreFactory dataStoreFactory, IPaymentValidatorFactory paymentValidatorFactory)
         {
-            return dataStoreType == "Backup" ? (IDataStore)new BackupAccountDataStore() : new AccountDataStore();
+            this.dataStoreFactory = dataStoreFactory;
+            this.paymentValidatorFactory = paymentValidatorFactory;
         }
 
-        public MakePaymentResult GetAccountStatus(Account account, PaymentScheme paymentScheme, decimal requestedAmount)
-        {
-            var result = new MakePaymentResult()
-            {
-                Success=true
-            };
+        public bool CheckAccountStatus(Account account, PaymentScheme paymentScheme, decimal requestedAmount)
+        {           
 
             if (account == null)
             {
-                result.Success = false;
-                return result;
-            }
-           
-            switch (paymentScheme)
-            {
-                case PaymentScheme.Bacs:                   
-                    if (!account.AllowedPaymentSchemes.HasFlag(AllowedPaymentSchemes.Bacs))
-                    {
-                        result.Success = false;
-                    }
-                    break;
-
-                case PaymentScheme.FasterPayments:                    
-                    if (!account.AllowedPaymentSchemes.HasFlag(AllowedPaymentSchemes.FasterPayments) || account.Balance < requestedAmount)
-                    {
-                        result.Success = false;
-                    }                   
-                    break;
-
-                case PaymentScheme.Chaps:                    
-                    if (!account.AllowedPaymentSchemes.HasFlag(AllowedPaymentSchemes.Chaps) || account.Status != AccountStatus.Live)
-                    {
-                        result.Success = false;
-                    }                   
-                    break;
+                return false;
             }
 
-            return result;
+            var paymentValidator = paymentValidatorFactory.GetPaymentValidator(paymentScheme);
+            return paymentValidator.IsAccountAllowedToMakePayment(account, requestedAmount);
+
+        }
+
+        public Account GetAccount(string debtorAccountNumber)
+        {
+            var accountDataStore = dataStoreFactory.GetAccountDataStore();
+            return accountDataStore.GetAccount(debtorAccountNumber);
+        }       
+
+        public void UpdateAccount(Account account)
+        {
+            var accountDataStore = dataStoreFactory.GetAccountDataStore();
+            accountDataStore.UpdateAccount(account);
         }
     }
 }

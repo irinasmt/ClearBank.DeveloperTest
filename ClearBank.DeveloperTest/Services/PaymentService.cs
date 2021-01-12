@@ -1,6 +1,4 @@
-﻿using ClearBank.DeveloperTest.Data;
-using ClearBank.DeveloperTest.Types;
-using System.Configuration;
+﻿using ClearBank.DeveloperTest.Types;
 
 namespace ClearBank.DeveloperTest.Services
 {
@@ -15,17 +13,15 @@ namespace ClearBank.DeveloperTest.Services
 
         public MakePaymentResult MakePayment(MakePaymentRequest request)
         {
-            var dataStoreType = ConfigurationManager.AppSettings["DataStoreType"];
+            var result = new MakePaymentResult();
+            Account account = accountService.GetAccount(request.DebtorAccountNumber);
+            result.Success = accountService.CheckAccountStatus(account, request.PaymentScheme, request.Amount);
 
-            IDataStore accountDataStore = accountService.GetAccountDataStore(dataStoreType);
-            Account account = accountDataStore.GetAccount(request.DebtorAccountNumber);
-
-            var result = accountService.GetAccountStatus(account, request.PaymentScheme, request.Amount) ;            
 
             if (result.Success)
             {
                 account.Balance -= request.Amount;
-                accountDataStore.UpdateAccount(account);
+                accountService.UpdateAccount(account);
             }
 
             return result;
